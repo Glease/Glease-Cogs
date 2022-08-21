@@ -1,0 +1,8 @@
+{
+    "author" : ["glee8e"],
+    "install_msg" : "Thank you for installing my repo.",
+    "name" : "glee8e",
+    "short" : "Several (read: one) cogs for the redbot!",
+    "description" : "Several cogs (read: one) adding functionality to the redbot!",
+    "tags" : ["utility","command", "message", "functionality"]
+}

@@ -1,0 +1,14 @@
+{
+    "author": ["glee8e"],
+    "name": "fetch_bot",
+    "install_msg": "I hope you know what this is for...",
+    "short": "A cog to export all or part of a channel's messages to an html file!",
+    "description": "Export messages to which you have reacted. \nRemember that exporting other users' messages from Discord does not respect the TOS.",
+    "tags": [
+        "export",
+        "messages",
+        "html"
+    ],
+    "requirements": ["chat-exporter==1.7.3"],
+    "end_user_data_statement": "This cog does not persistently store data or metadata about users."
+}
