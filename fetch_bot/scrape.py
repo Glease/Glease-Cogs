@@ -1,9 +1,9 @@
 import datetime
 import io
+import json
 import typing
 from typing import Literal
 
-import chat_exporter
 import discord
 from redbot.core import checks, commands
 
@@ -25,7 +25,8 @@ class MyCog(commands.Cog):
                            approve_emoji: typing.Union[discord.Emoji, discord.PartialEmoji],
                            before: typing.Optional[typing.Union[discord.abc.Snowflake, datetime.datetime]],
                            after: typing.Optional[typing.Union[discord.abc.Snowflake, datetime.datetime]],
-                           limit: typing.Optional[int]):
+                           export_type: typing.Literal["html", "json-short"],
+                           limit: typing.Optional[int]) -> typing.Optional[discord.File]:
         async def process_message(message: discord.Message):
             for reaction in message.reactions:
                 if reaction.emoji == approve_emoji:
@@ -45,7 +46,42 @@ class MyCog(commands.Cog):
                 await tracker.edit(content=f'Processed {processed} Found {len(messages)}')
         await tracker.edit(content=f'Processed {processed} Found {len(messages)}. Finalizing...')
         if messages:
-            return await chat_exporter.raw_export(channel=channel, messages=messages, guild=channel.guild)
+            if export_type == 'html':
+                try:
+                    import chat_exporter
+                except ImportError:
+                    await ctx.send("!!!Install chat_exporter==1.7.3 to use html export type!!!")
+                    return None
+                html = await chat_exporter.raw_export(channel=channel, messages=messages, guild=channel.guild)
+                return discord.File(io.BytesIO(html.encode()), f'transcript-{datetime.datetime.now().timestamp()}.html')
+            elif export_type == 'json-short':
+                wrapper = io.TextIOWrapper(io.BytesIO(), encoding='utf-8')
+                json.dump([
+                    {
+                        'content': message.clean_content,
+                        'link': message.jump_url,
+                        'author': {
+                            'id': message.author.id,
+                            'display_name': message.author.display_name,
+                            'unique_name': str(message.author)
+                        },
+                        'embeds': [
+                            embed.to_dict()
+                            for embed in message.embeds
+                        ],
+                        'attachments': [
+                            attachment.proxy_url
+                            for attachment in message.attachments
+                        ]
+                    }
+                    for message in messages
+                ], wrapper)
+                buffer = wrapper.detach()
+                buffer.seek(0)
+                return discord.File(buffer, f'transcript-{datetime.datetime.now().timestamp()}.json')
+            else:
+                await ctx.send("!!!Unknown export type!!!")
+                return None
         else:
             return None
 
@@ -61,15 +97,13 @@ class MyCog(commands.Cog):
                  approve: typing.Union[discord.Emoji, discord.PartialEmoji],
                  after: typing.Optional[typing.Union[discord.PartialMessage, discord.Message]] = None,
                  before: typing.Optional[typing.Union[discord.PartialMessage, discord.Message]] = None,
+                 export_type: typing.Literal["html", "json-short"] = 'json-short',
                  limit: typing.Optional[int] = None, ):
         """
         Export with all options available
         """
         with ctx.typing():
-            transcript = await self.get_messages(ctx, channel, ctx.author, approve, before, after, limit)
+            transcript = await self.get_messages(ctx, channel, ctx.author, approve, before, after, export_type, limit)
             if transcript:
-                file = discord.File(io.BytesIO(transcript.encode('utf-8')),
-                                    filename=f"transcript-{datetime.datetime.now().timestamp()}.html")
-                await ctx.send("Transcript generated.", file=file)
+                await ctx.send("Transcript generated.", file=transcript)
         await ctx.tick()
-
